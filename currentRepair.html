@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Current Repair Requests - Gearhead Auto Hub</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="container header-container">
+            <div class="brand">
+                <h1>Gearhead Auto Hub</h1>
+                <p>Service Management & Repair Tracker</p>
+            </div>
+            <nav class="nav-menu">
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="product.html" class="nav-link">Products</a>
+                <a href="services.html" class="nav-link">Services</a>
+                <a href="currentRepair.html" class="nav-link active">Current Repair Requests & Services</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container main-layout">
+        
+     
+        <section class="card form-card">
+            <h2>Enter Your Service / Ticket Number</h2>
+            <p class="section-desc">Submit your ticket or queue number below to register your vehicle into the live workshop queue.</p>
+            
+            <form id="queueForm" class="queue-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="queueNumber">Ticket / Queue Number</label>
+                        <input type="text" id="queueNumber" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="customerName">Customer Name & Vehicle</label>
+                        <input type="text" id="customerName" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="serviceType">Requested Service</label>
+                        <select id="serviceType" required>
+                            <option value="" disabled selected></option>
+                            <option value="CVT & Drivetrain Tuning">CVT & Drivetrain Tuning (₱500)</option>
+                            <option value="Computer Diagnostics">Computer Diagnostics (₱350)</option>
+                            <option value="Brake System Overhaul">Brake System Overhaul (₱600)</option>
+                            <option value="Oil Change & Inspection">Oil Change & Maintenance (₱300)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">Join Repair Queue</button>
+            </form>
+        </section>
+
+       
+        <section class="card">
+            <h2>Current Repair Requests & Queue Status</h2>
+            <p class="section-desc">Track real-time queue positions and update service statuses. Clicking 'Done' logs the customer and clears the active ticket.</p>
+            
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <span class="label">Still Queueing</span>
+                    <span id="queuingCount" class="amount queuing">0 Waiting</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label">On Service</span>
+                    <span id="servicingCount" class="amount servicing">0 Active</span>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Total Completed</span>
+                    <span id="doneCount" class="amount done">0 Completed</span>
+                </div>
+            </div>
+
+            <table class="repair-table">
+                <thead>
+                    <tr>
+                        <th>Ticket ID</th>
+                        <th>Queue No.</th>
+                        <th>Customer & Vehicle</th>
+                        <th>Service Requested</th>
+                        <th>Mechanic</th>
+                        <th>Status</th>
+                        <th>Action Controls</th>
+                    </tr>
+                </thead>
+                <tbody id="repairTableBody">
+           
+                </tbody>
+            </table>
+        </section>
+
+        <section class="card log-card">
+            <h2>Completed Customers Log</h2>
+            <p class="section-desc">Historical archive of finished service records transferred automatically from the active queue.</p>
+            
+            <table class="repair-table log-table">
+                <thead>
+                    <tr>
+                        <th>Ticket ID</th>
+                        <th>Queue No.</th>
+                        <th>Customer & Vehicle</th>
+                        <th>Completed Service</th>
+                        <th>Time Finished</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody">
+                    <tr id="emptyLogPlaceholder">
+                        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No completed customer records in log yet.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script>
+        let autoQueueCounter = 1;
+        let completedCount = 0;
+
+        let counts = {
+            queueing: 0,
+            servicing: 0
+        };
+
+        function updateSummaryDisplay() {
+            document.getElementById('queuingCount').textContent = `${counts.queueing} Waiting`;
+            document.getElementById('servicingCount').textContent = `${counts.servicing} Active`;
+            document.getElementById('doneCount').textContent = `${completedCount} Completed`;
+        }
+
+        document.getElementById('queueForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const ticketInput = document.getElementById('queueNumber').value.trim();
+            const customerInput = document.getElementById('customerName').value.trim();
+            const serviceInput = document.getElementById('serviceType').value;
+
+            if (!ticketInput || !customerInput || !serviceInput) {
+                return;
+            }
+
+            const ticketID = ticketInput.startsWith('#') ? ticketInput : '#' + ticketInput;
+            const queueNum = 'Q-' + String(autoQueueCounter).padStart(2, '0');
+            autoQueueCounter++;
+
+            const tableBody = document.getElementById('repairTableBody');
+            const newRow = document.createElement('tr');
+            newRow.setAttribute('data-status', 'queueing');
+
+            newRow.innerHTML = `
+                <td><strong>${ticketID}</strong></td>
+                <td><span class="queue-num">${queueNum}</span></td>
+                <td>${customerInput}</td>
+                <td>${serviceInput}</td>
+                <td><span class="mechanic-name">Unassigned</span></td>
+                <td><span class="badge status-queueing status-tag">Still Queueing</span></td>
+                <td>
+                    <div class="action-btn-group">
+                        <button type="button" class="btn-status btn-in-service" onclick="updateStatus(this, 'servicing')">In Service</button>
+                        <button type="button" class="btn-status btn-done" onclick="moveToLog(this)">Done</button>
+                        <button type="button" class="btn-status btn-queueing" onclick="updateStatus(this, 'queueing')">Queueing</button>
+                    </div>
+                </td>
+            `;
+
+            tableBody.appendChild(newRow);
+
+            counts.queueing++;
+            updateSummaryDisplay();
+
+            document.getElementById('queueForm').reset();
+        });
+
+        function updateStatus(buttonElement, newStatus) {
+            const row = buttonElement.closest('tr');
+            const currentStatus = row.getAttribute('data-status');
+
+            if (currentStatus === newStatus) return;
+
+            counts[currentStatus]--;
+            counts[newStatus]++;
+
+            row.setAttribute('data-status', newStatus);
+
+            const statusTag = row.querySelector('.status-tag');
+            const mechanicTag = row.querySelector('.mechanic-name');
+
+            if (newStatus === 'servicing') {
+                statusTag.className = 'badge status-on-service status-tag';
+                statusTag.textContent = 'On Service';
+                if (mechanicTag.textContent === 'Unassigned') {
+                    mechanicTag.textContent = 'Assigned Mechanic';
+                }
+            } else if (newStatus === 'queueing') {
+                statusTag.className = 'badge status-queueing status-tag';
+                statusTag.textContent = 'Still Queueing';
+            }
+
+            updateSummaryDisplay();
+        }
+
+        function moveToLog(buttonElement) {
+            const row = buttonElement.closest('tr');
+            const currentStatus = row.getAttribute('data-status');
+
+            counts[currentStatus]--;
+            completedCount++;
+
+            const ticketID = row.cells[0].innerHTML;
+            const queueNum = row.cells[1].innerHTML;
+            const customerDetails = row.cells[2].innerHTML;
+            const serviceRequested = row.cells[3].innerHTML;
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const placeholder = document.getElementById('emptyLogPlaceholder');
+            if (placeholder) {
+                placeholder.remove();
+            }
+
+            const logTableBody = document.getElementById('logTableBody');
+            const logRow = document.createElement('tr');
+
+            logRow.innerHTML = `
+                <td>${ticketID}</td>
+                <td>${queueNum}</td>
+                <td>${customerDetails}</td>
+                <td>${serviceRequested}</td>
+                <td><small>${timeString}</small></td>
+                <td><span class="badge status-done">Archived (Done)</span></td>
+            `;
+            logTableBody.appendChild(logRow);
+            row.remove();
+            updateSummaryDisplay();
+        }
+    </script>
+</body>
+</html>
